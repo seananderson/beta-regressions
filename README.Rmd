@@ -1,0 +1,120 @@
+---
+output:
+  md_document:
+    variant: markdown_github
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "figs/",
+  cache.path = "cache/"
+)
+```
+
+# Simulate from beta regressions with Stan or betareg
+```{r}
+# need C++ compiler installed:
+# https://support.rstudio.com/hc/en-us/articles/200486498-Package-Development-Prerequisites
+
+# install.packages("devtools")
+
+# run this once to install rstanarm!!
+# devtools::install_github("stan-dev/rstanarm", args = "--preclean", build_vignettes = FALSE)
+
+library(rstanarm)
+options(mc.cores = parallel::detectCores())
+library(betareg)
+```
+
+# Simulate data
+
+```{r}
+set.seed(1)
+N <- 150
+x <- rnorm(N, 2, 1)
+mu <- binomial(link = "logit")$linkinv(0.8 + 0.3*x)
+phi <- exp(1.5)
+y <- rbeta(N, mu * phi, (1 - mu) * phi)
+hist(y, col = "dark grey", border = FALSE, xlim = c(0,1))
+fake_dat <- data.frame(y, x)
+```
+
+# Stan
+
+```{r}
+fit <- stan_betareg(y ~ x, data = fake_dat, link = "logit")
+print(fit)
+fit$stanfit
+
+plot(fit)
+# pp_check(fit)
+# prior_summary(fit)
+
+# simulate new observations from a given set of predictor values:
+newdata <- data.frame(x = 3)
+p <- posterior_predict(fit, draws = 200, newdata = newdata)
+hist(p)
+
+newdata <- data.frame(x = -0.5)
+p <- posterior_predict(fit, draws = 200, newdata = newdata)
+hist(p)
+
+# plot predictions from posterior:
+intercept <- as.matrix(fit)[,"(Intercept)"]
+beta_x <- as.matrix(fit)[,"x"]
+
+x_seq <- seq(min(x), max(x), length.out = 100)
+plot(x_seq, plogis(coef(fit)[[1]] + coef(fit)[[2]] * x_seq), type = "l",
+  ylim = c(0.5, 0.95), col = "red", lwd = 3, ylab = "Proportion")
+for (i in seq_len(100)) {
+  lines(x_seq, plogis(intercept[i] + beta_x[i] * x_seq), col = "#00000040")
+}
+```
+
+# betareg
+
+Modified from https://github.com/cran/arm/blob/master/R/sim.R
+
+```{r}
+sim_betareg <- function(object, n.sims = 100) {
+  object.class <- class(object)[[1]]
+  summ <- summary (object, correlation=TRUE, dispersion = object$dispersion)
+  coef <- summ$coefficients$mean[,1:2,drop=FALSE]
+  dimnames(coef)[[2]] <- c("coef.est","coef.sd")
+  beta.hat <- coef[,1,drop=FALSE]
+  sd.beta <- coef[,2,drop=FALSE]
+  k <- length(object$coefficients$mean)
+  corr.beta <- cov2cor(vcov(object))[1:k, 1:k]
+  V.beta <- corr.beta * array(sd.beta,c(k,k)) * t(array(sd.beta,c(k,k)))
+  beta <- array (NA, c(n.sims,k))
+  dimnames(beta) <- list (NULL, dimnames(beta.hat)[[1]])
+  for (s in 1:n.sims){
+    beta[s,] <- MASS::mvrnorm (1, beta.hat, V.beta)
+  }
+  beta2 <- array (0, c(n.sims,length(coefficients(object))))
+  dimnames(beta2) <- list (NULL, names(coefficients(object)))
+  beta2[,dimnames(beta2)[[2]]%in%dimnames(beta)[[2]]] <- beta
+  beta2 <- beta2[, 1:k]
+  beta2
+}
+
+```
+
+
+```{r}
+fit2 <- betareg(y ~ x, data = fake_dat, link = "logit")
+summary(fit2)
+
+s <- sim_betareg(fit2, n.sims = 100)
+
+x_seq <- seq(min(x), max(x), length.out = 100)
+plot(x_seq, plogis(coef(fit2)[[1]] + coef(fit2)[[2]] * x_seq), type = "l",
+  ylim = c(0.5, 0.95), col = "red", lwd = 3, ylab = "Proportion")
+for (i in seq_len(nrow(s))) {
+  lines(x_seq, plogis(s[i, 1] + s[i, 2] * x_seq), col = "#00000040")
+}
+```
