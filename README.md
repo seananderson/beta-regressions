@@ -28,7 +28,7 @@ library(betareg)
 Simulate data
 =============
 
-But simulate some data to fit our models too. This is modified from the help file for `rstanarm::stan_betareg`.
+First simulate some data to fit our models too. This is modified from the help file for `rstanarm::stan_betareg`.
 
 ``` r
 set.seed(1)
@@ -48,6 +48,8 @@ fake_dat <- data.frame(y, x)
 
 Stan
 ====
+
+Now we can fit the model with `rstanarm::stan_betareg`:
 
 ``` r
 fit <- stan_betareg(y ~ x, data = fake_dat, link = "logit")
@@ -82,7 +84,7 @@ fit$stanfit
 #> mean_PPD         1
 #> log-posterior    1
 #> 
-#> Samples were drawn using NUTS(diag_e) at Mon Jan  9 17:41:26 2017.
+#> Samples were drawn using NUTS(diag_e) at Mon Jan  9 17:45:33 2017.
 #> For each parameter, n_eff is a crude measure of effective sample size,
 #> and Rhat is the potential scale reduction factor on split chains (at 
 #> convergence, Rhat=1).
@@ -97,7 +99,7 @@ plot(fit)
 # prior_summary(fit)
 ```
 
-We can simulate new observations for a given set of predictor values. This includes both uncertainty in the mean and the beta observation distribution:
+We can simulate new observations for a given set of predictor values. This includes both uncertainty in the mean and the beta observation distribution. Below, I picked 2 arbitrary values for `x` to simulate with.
 
 ``` r
 newdata <- data.frame(x = 3)
@@ -139,7 +141,7 @@ Now let's do something similar with the betareg package.
 
 First I extracted the function `arm::sim()` from <https://github.com/cran/arm/blob/master/R/sim.R>
 
-Then I modified it as needed to match the output from the betareg package.
+Then I modified it as needed to match the output from the betareg package:
 
 ``` r
 sim_betareg <- function(object, n.sims = 100) {
