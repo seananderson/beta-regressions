@@ -2,12 +2,15 @@
 Simulate from beta regressions with Stan or betareg
 ===================================================
 
+This example shows how to simulate from a beta regression model. First, I do this using the rstanarm package for a fully Bayesian model. Second, I do this with a maximum likelihood model fit with the betareg package by modifying the function `arm::sim()`.
+
+Packages
+========
+
+Beta regression was just added into rstanarm, so you will need to install the package from GitHub. This will require a [C++ compiler](https://support.rstudio.com/hc/en-us/articles/200486498-Package-Development-Prerequisites). Sometime in the near future I imagine you'll just be able to install the version from CRAN.
+
 ``` r
-# need C++ compiler installed:
-# https://support.rstudio.com/hc/en-us/articles/200486498-Package-Development-Prerequisites
-
 # install.packages("devtools")
-
 # run this once to install rstanarm!!
 # devtools::install_github("stan-dev/rstanarm", args = "--preclean", build_vignettes = FALSE)
 
@@ -24,6 +27,8 @@ library(betareg)
 
 Simulate data
 =============
+
+But simulate some data to fit our models too. This is modified from the help file for `rstanarm::stan_betareg`.
 
 ``` r
 set.seed(1)
@@ -77,7 +82,7 @@ fit$stanfit
 #> mean_PPD         1
 #> log-posterior    1
 #> 
-#> Samples were drawn using NUTS(diag_e) at Fri Jan  6 18:37:47 2017.
+#> Samples were drawn using NUTS(diag_e) at Mon Jan  9 17:41:26 2017.
 #> For each parameter, n_eff is a crude measure of effective sample size,
 #> and Rhat is the potential scale reduction factor on split chains (at 
 #> convergence, Rhat=1).
@@ -90,14 +95,17 @@ plot(fit)
 ``` r
 # pp_check(fit)
 # prior_summary(fit)
+```
 
-# simulate new observations from a given set of predictor values:
+We can simulate new observations for a given set of predictor values. This includes both uncertainty in the mean and the beta observation distribution:
+
+``` r
 newdata <- data.frame(x = 3)
 p <- posterior_predict(fit, draws = 200, newdata = newdata)
 hist(p)
 ```
 
-![](figs/unnamed-chunk-4-2.png)
+![](figs/unnamed-chunk-5-1.png)
 
 ``` r
 
@@ -106,11 +114,11 @@ p <- posterior_predict(fit, draws = 200, newdata = newdata)
 hist(p)
 ```
 
-![](figs/unnamed-chunk-4-3.png)
+![](figs/unnamed-chunk-5-2.png)
+
+We can also take draws from the posteriors:
 
 ``` r
-
-# plot predictions from posterior:
 intercept <- as.matrix(fit)[,"(Intercept)"]
 beta_x <- as.matrix(fit)[,"x"]
 
@@ -122,12 +130,16 @@ for (i in seq_len(100)) {
 }
 ```
 
-![](figs/unnamed-chunk-4-4.png)
+![](figs/unnamed-chunk-6-1.png)
 
 betareg
 =======
 
-Edited from <https://github.com/cran/arm/blob/master/R/sim.R>
+Now let's do something similar with the betareg package.
+
+First I extracted the function `arm::sim()` from <https://github.com/cran/arm/blob/master/R/sim.R>
+
+Then I modified it as needed to match the output from the betareg package.
 
 ``` r
 sim_betareg <- function(object, n.sims = 100) {
@@ -152,6 +164,8 @@ sim_betareg <- function(object, n.sims = 100) {
   beta2
 }
 ```
+
+Now we can fit the model and take draws from the coefficients.
 
 ``` r
 fit2 <- betareg(y ~ x, data = fake_dat, link = "logit")
@@ -190,4 +204,6 @@ for (i in seq_len(nrow(s))) {
 }
 ```
 
-![](figs/unnamed-chunk-6-1.png)
+![](figs/unnamed-chunk-8-1.png)
+
+I think it's a little bit trickier if we also want to simulate new observations with the beta distribution because there is some correlation between the mean and the dispersion parameter.
