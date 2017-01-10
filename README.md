@@ -28,7 +28,7 @@ library(betareg)
 Simulate data
 =============
 
-First simulate some data to fit our models too. This is modified from the help file for `rstanarm::stan_betareg`.
+First simulate some data to fit our models to. This is modified from the help file for `rstanarm::stan_betareg`.
 
 ``` r
 set.seed(1)
